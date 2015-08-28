@@ -5,12 +5,14 @@ import (
 	"encoding/binary"
 	"io"
 	"os"
+	"unicode/utf16"
 )
 
 // RecordHeader represents record header
 type RecordHeader struct {
 	Length uint32 // bytes of this record
 	Tag    string // ascii string
+	Offset uint64 // file offset of data
 }
 
 // Header reads header from stream
@@ -25,8 +27,13 @@ func Header(r io.Reader) (ret RecordHeader, err error) {
 		return
 	}
 
-	ret = RecordHeader{l, string(t)}
+	ret = RecordHeader{l, string(t), 0}
 	return
+}
+
+// ByteLength returns how many bytes occupied in ggpk file
+func (h RecordHeader) ByteLength() int {
+	return 8
 }
 
 // GGGRecord is root record
@@ -34,21 +41,6 @@ type GGGRecord struct {
 	Header    RecordHeader
 	NodeCount uint32   // how many
 	Offsets   []uint64 // file position of child node
-}
-
-// Children reads child node header from file
-func (g GGGRecord) Children(f *os.File) (ret []RecordHeader, err error) {
-	for i := uint32(0); i < g.NodeCount; i++ {
-		if _, err = f.Seek(int64(g.Offsets[i]), 0); err != nil {
-			return
-		}
-		node, err := Header(f)
-		if err != nil {
-			return ret, err
-		}
-		ret = append(ret, node)
-	}
-	return
 }
 
 // GGG reads GGGRecord from stream
@@ -70,6 +62,27 @@ func GGG(r io.Reader) (ret GGGRecord, err error) {
 	return
 }
 
+// ByteLength returns how many bytes occupied in ggpk file
+func (g GGGRecord) ByteLength() int {
+	return g.Header.ByteLength() + 4 + int(g.NodeCount)*8
+}
+
+// Children reads child node header from file
+func (g GGGRecord) Children(f *os.File) (ret []RecordHeader, err error) {
+	for i := uint32(0); i < g.NodeCount; i++ {
+		if _, err = f.Seek(int64(g.Offsets[i]), 0); err != nil {
+			return
+		}
+		node, err := Header(f)
+		if err != nil {
+			return ret, err
+		}
+		node.Offset = g.Offsets[i] + uint64(node.ByteLength())
+		ret = append(ret, node)
+	}
+	return
+}
+
 // DirectoryEntry is an item in directory
 type DirectoryEntry struct {
 	Timestamp uint32
@@ -81,11 +94,16 @@ func readDirectoryEntry(r io.Reader) (ret DirectoryEntry, err error) {
 	return
 }
 
+// ByteLength returns how many bytes occupied in ggpk file
+func (d DirectoryEntry) ByteLength() int {
+	return 4 + 8
+}
+
 // FileRecord is a file
 type FileRecord struct {
 	NameLength uint32
-	Digest     [32]byte
-	Name       []uint16 // file name in utf16le
+	Digest     []byte
+	Name       string // file name in utf16le, null ended
 }
 
 // File reads FileRecord from stream
@@ -95,7 +113,7 @@ func File(r io.Reader) (ret FileRecord, err error) {
 		return
 	}
 
-	var d [32]byte
+	d := make([]byte, 32)
 	if err = binary.Read(r, binary.LittleEndian, &d); err != nil {
 		return
 	}
@@ -104,18 +122,24 @@ func File(r io.Reader) (ret FileRecord, err error) {
 	if err = binary.Read(r, binary.LittleEndian, name); err != nil {
 		return
 	}
+	utf8Name := utf16.Decode(name)
 
-	ret = FileRecord{l, d, name}
+	ret = FileRecord{l, d, string(utf8Name[:len(utf8Name)-1])}
 	return
+}
+
+// ByteLength returns how many bytes occupied in ggpk file
+func (f FileRecord) ByteLength() int {
+	return 4 + 32 + int(f.NameLength)
 }
 
 // DirectoryRecord is a directory
 type DirectoryRecord struct {
 	NameLength uint32
 	ChildCount uint32
-	Digest     [32]byte
-	Name       []uint16
-	Children   []DirectoryEntry
+	Digest     []byte
+	Name       string
+	Entries    []DirectoryEntry
 }
 
 // Directory reads DirectoryRecord from stream
@@ -130,7 +154,7 @@ func Directory(r io.Reader) (ret DirectoryRecord, err error) {
 		return
 	}
 
-	var d [32]byte
+	d := make([]byte, 32)
 	if err = binary.Read(r, binary.LittleEndian, &d); err != nil {
 		return
 	}
@@ -138,6 +162,10 @@ func Directory(r io.Reader) (ret DirectoryRecord, err error) {
 	n := make([]uint16, l)
 	if err = binary.Read(r, binary.LittleEndian, n); err != nil {
 		return
+	}
+	utf8Name := []rune(" ")
+	if len(n) != 1 || n[0] != 0 {
+		utf8Name = utf16.Decode(n)
 	}
 
 	child := make([]DirectoryEntry, c)
@@ -149,7 +177,31 @@ func Directory(r io.Reader) (ret DirectoryRecord, err error) {
 		child[i] = de
 	}
 
-	ret = DirectoryRecord{l, c, d, n, child}
+	ret = DirectoryRecord{l, c, d, string(utf8Name[:len(utf8Name)-1]), child}
+	return
+}
+
+func (d DirectoryRecord) Children(f *os.File) (ret []RecordHeader, err error) {
+	for _, e := range d.Entries {
+		if _, err = f.Seek(int64(e.Offset), 0); err != nil {
+			return
+		}
+		h, err := Header(f)
+		if err != nil {
+			return ret, err
+		}
+		h.Offset = e.Offset + uint64(h.ByteLength())
+		ret = append(ret, h)
+	}
+	return
+}
+
+// ByteLength returns how many bytes occupied in ggpk file
+func (d DirectoryRecord) ByteLength() (ret int) {
+	ret = 4 + 4 + 32 + int(d.NameLength)
+	for _, e := range d.Entries {
+		ret += e.ByteLength()
+	}
 	return
 }
 
@@ -160,4 +212,22 @@ type FreeRecord uint64
 func Free(r io.Reader) (ret FreeRecord, err error) {
 	err = binary.Read(r, binary.LittleEndian, &ret)
 	return
+}
+
+func (n FreeRecord) Next(f *os.File) (ret FreeRecord, err error) {
+	if n == 0 {
+		return
+	}
+
+	if _, err = f.Seek(int64(n), 0); err != nil {
+		return
+	}
+
+	ret, err = Free(f)
+	return
+}
+
+// ByteLength returns how many bytes occupied in ggpk file
+func (f FreeRecord) ByteLength() int {
+	return 8
 }
