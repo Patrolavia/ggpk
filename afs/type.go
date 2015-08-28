@@ -1,7 +1,9 @@
 package afs
 
 import (
+	"encoding/binary"
 	"log"
+	"os"
 
 	"github.com/Patrolavia/ggpk/record"
 )
@@ -23,14 +25,25 @@ func FromFileRecord(h record.RecordHeader, f record.FileRecord, t uint32) *File 
 		Name:      f.Name,
 		Timestamp: t,
 		Digest:    f.Digest,
-		Size:      uint64(h.Length) - uint64(h.ByteLength()) - uint64(f.ByteLength()),
-		Offset:    h.Offset,
+		Size:      uint64(h.Length) - uint64(h.ByteLength()+f.ByteLength()),
+		Offset:    h.Offset + uint64(f.ByteLength()),
 	}
 }
 
 // Dump will dump some info for debug
 func (f *File) Dump() {
 	log.Print(f.Path)
+}
+
+// Content reads file content from ggpk file
+func (f *File) Content(ggpk *os.File) (data []byte, err error) {
+	if _, err = ggpk.Seek(int64(f.Offset), 0); err != nil {
+		return
+	}
+
+	data = make([]byte, f.Size)
+	err = binary.Read(ggpk, binary.LittleEndian, data)
+	return
 }
 
 // Directory represents virtual directory

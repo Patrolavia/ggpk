@@ -130,7 +130,7 @@ func File(r io.Reader) (ret FileRecord, err error) {
 
 // ByteLength returns how many bytes occupied in ggpk file
 func (f FileRecord) ByteLength() int {
-	return 4 + 32 + int(f.NameLength)
+	return 4 + 32 + int(f.NameLength*2)
 }
 
 // DirectoryRecord is a directory
@@ -198,7 +198,7 @@ func (d DirectoryRecord) Children(f *os.File) (ret []RecordHeader, err error) {
 
 // ByteLength returns how many bytes occupied in ggpk file
 func (d DirectoryRecord) ByteLength() (ret int) {
-	ret = 4 + 4 + 32 + int(d.NameLength)
+	ret = 4 + 4 + 32 + int(d.NameLength*2)
 	for _, e := range d.Entries {
 		ret += e.ByteLength()
 	}
