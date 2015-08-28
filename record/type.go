@@ -8,6 +8,14 @@ import (
 	"unicode/utf16"
 )
 
+func w(f *os.File, data interface{}, err error) (e error) {
+	e = err
+	if e == nil {
+		e = binary.Write(f, binary.LittleEndian, data)
+	}
+	return
+}
+
 // RecordHeader represents record header
 type RecordHeader struct {
 	Length uint32 // bytes of this record
@@ -28,6 +36,14 @@ func Header(r io.Reader) (ret RecordHeader, err error) {
 	}
 
 	ret = RecordHeader{l, string(t), 0}
+	return
+}
+
+// Save saves header to ggpk
+func (h RecordHeader) Save(f *os.File) (err error) {
+	err = w(f, h.Length, err)
+	data := []byte(h.Tag)
+	err = w(f, data, err)
 	return
 }
 
@@ -59,6 +75,14 @@ func GGG(r io.Reader) (ret GGGRecord, err error) {
 	}
 	ret.NodeCount = c
 	ret.Offsets = pos
+	return
+}
+
+// Save record to file
+func (g GGGRecord) Save(f *os.File) (err error) {
+	err = g.Header.Save(f)
+	err = w(f, g.NodeCount, err)
+	err = w(f, g.Offsets, err)
 	return
 }
 
@@ -94,6 +118,13 @@ func readDirectoryEntry(r io.Reader) (ret DirectoryEntry, err error) {
 	return
 }
 
+// Save directory entry to file
+func (d DirectoryEntry) Save(f *os.File) (err error) {
+	err = w(f, d.Timestamp, err)
+	err = w(f, d.Offset, err)
+	return
+}
+
 // ByteLength returns how many bytes occupied in ggpk file
 func (d DirectoryEntry) ByteLength() int {
 	return 4 + 8
@@ -125,6 +156,16 @@ func File(r io.Reader) (ret FileRecord, err error) {
 	utf8Name := utf16.Decode(name)
 
 	ret = FileRecord{l, d, string(utf8Name[:len(utf8Name)-1])}
+	return
+}
+
+// Save file record to ggpk file
+func (r FileRecord) Save(f *os.File) (err error) {
+	name := utf16.Encode([]rune(r.Name))
+	name = append(name, 0)
+	err = w(f, r.NameLength, err)
+	err = w(f, r.Digest, err)
+	err = w(f, name, err)
 	return
 }
 
@@ -178,6 +219,22 @@ func Directory(r io.Reader) (ret DirectoryRecord, err error) {
 	}
 
 	ret = DirectoryRecord{l, c, d, string(utf8Name[:len(utf8Name)-1]), child}
+	return
+}
+
+// Save directory record to ggpk file
+func (d DirectoryRecord) Save(f *os.File) (err error) {
+	name := utf16.Encode([]rune(d.Name))
+	name = append(name, 0)
+	err = w(f, d.NameLength, err)
+	err = w(f, d.ChildCount, err)
+	err = w(f, d.Digest, err)
+	err = w(f, name, err)
+	for _, n := range d.Entries {
+		if e := n.Save(f); e != nil {
+			err = e
+		}
+	}
 	return
 }
 
