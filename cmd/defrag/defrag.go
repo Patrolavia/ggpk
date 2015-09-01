@@ -84,7 +84,7 @@ func main() {
 	level = 0
 	cur := uint64(0)
 	for _, f := range files {
-		f.Save(dest, orig)
+		f.Save(dest)
 		cur += uint64(f.Header.Length)
 		p(cur, totalFileBytes)
 	}

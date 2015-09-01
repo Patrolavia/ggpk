@@ -73,7 +73,7 @@ Orz:
 
 func saveFile(file *afs.File, f *os.File) {
 	fmt.Printf("Writing file %s ...", file.Path)
-	data, err := file.Content(f)
+	data, err := file.Content()
 	if err != nil {
 		log.Fatalf("While reading file %s: %s", file.Path, err)
 	}

@@ -38,8 +38,8 @@ func (f *File) Dump() {
 }
 
 // Content reads file content from ggpk file
-func (f *File) Content(ggpk *os.File) (data []byte, err error) {
-	if _, err = ggpk.Seek(int64(f.Offset), 0); err != nil {
+func (f *File) Content() (data []byte, err error) {
+	if _, err = f.OrigFile.Seek(int64(f.Offset), 0); err != nil {
 		return
 	}
 

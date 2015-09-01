@@ -37,7 +37,7 @@ func NewGGPKFile(file *afs.File, parent *record.DirectoryEntry) (ret GGPKFile) {
 
 }
 
-func (file GGPKFile) Save(f *os.File, o *os.File) {
+func (file GGPKFile) Save(f *os.File) {
 	path := file.Orig.Path
 	if err := file.Header.Save(f); err != nil {
 		log.Fatalf("While writing header of %s: %s", path, err)
@@ -47,7 +47,7 @@ func (file GGPKFile) Save(f *os.File, o *os.File) {
 		log.Fatalf("While writing info of %s: %s", path, err)
 	}
 
-	data, err := file.Orig.Content(o)
+	data, err := file.Orig.Content()
 	if err != nil {
 		log.Fatalf("While reading content of %s: %s", path, err)
 	}
