@@ -58,6 +58,10 @@ func (file GGPKFile) Save(f *os.File) {
 	}
 }
 
+func (file GGPKFile) Size() uint32 {
+	return file.Header.Length - uint32(file.Header.ByteLength() + file.Record.ByteLength())
+}
+
 type GGPKDirectory struct {
 	Header record.RecordHeader
 	Record record.DirectoryRecord
