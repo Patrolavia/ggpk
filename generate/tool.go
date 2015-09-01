@@ -25,6 +25,7 @@ func generate(root *afs.Directory, parent *record.DirectoryEntry) (dirs []GGPKDi
 	if idx != len(me.Record.Entries) {
 		log.Fatalf("%d, %d", idx, len(me.Record.Entries))
 	}
+
 	return
 }
 

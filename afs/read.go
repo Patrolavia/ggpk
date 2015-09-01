@@ -42,7 +42,7 @@ func FromGGPK(f *os.File) (root *Directory, err error) {
 	}
 
 	// create afs root
-	rootdir, err := readDir(f, rootDirNode)
+	rootdir, err := record.ReadDir(f, rootDirNode)
 	if err != nil {
 		return
 	}
@@ -75,24 +75,8 @@ func doEntry(f *os.File, e record.DirectoryEntry, cur *Directory) error {
 	return doHeader(f, h, cur, e.Timestamp)
 }
 
-func readDir(f *os.File, h record.RecordHeader) (ret record.DirectoryRecord, err error) {
-	if _, err = f.Seek(int64(h.Offset), 0); err != nil {
-		return
-	}
-	ret, err = record.Directory(f)
-	return
-}
-
-func readFile(f *os.File, h record.RecordHeader) (ret record.FileRecord, err error) {
-	if _, err = f.Seek(int64(h.Offset), 0); err != nil {
-		return
-	}
-	ret, err = record.File(f)
-	return
-}
-
 func doDir(f *os.File, h record.RecordHeader, cur *Directory, t uint32) error {
-	dir, err := readDir(f, h)
+	dir, err := record.ReadDir(f, h)
 	if err != nil {
 		return err
 	}
@@ -113,7 +97,7 @@ func doDir(f *os.File, h record.RecordHeader, cur *Directory, t uint32) error {
 }
 
 func doFile(f *os.File, h record.RecordHeader, cur *Directory, t uint32) error {
-	file, err := readFile(f, h)
+	file, err := record.ReadFile(f, h)
 	if err != nil {
 		return err
 	}

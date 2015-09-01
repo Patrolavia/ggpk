@@ -114,7 +114,7 @@ func FromDirectoryRecord(h record.RecordHeader, d record.DirectoryRecord, t uint
 		Path:       "",
 		Name:       d.Name,
 		Timestamp:  t,
-		digest:     d.Digest,
+		digest:     make([]byte, 0), // reset digest because afs would not preserve original order
 		Subfolders: make([]*Directory, 0),
 		Files:      make([]*File, 0),
 		Offset:     h.Offset,
@@ -146,12 +146,8 @@ func (d *Directory) Digest() []byte {
 		data = append(data, f.Digest()...)
 	}
 	sum := sha256.Sum256(data)
-	digest := make([]byte, len(sum))
-	for k, v := range sum {
-		digest[k] = v
-	}
-	d.digest = digest
-	return digest
+	d.digest = sum[0:]
+	return d.digest
 }
 
 // ByName can sort files by filename
