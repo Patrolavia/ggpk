@@ -1,18 +1,14 @@
 package main
 
 import (
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"os"
 
 	"github.com/Patrolavia/ggpk/afs"
+	"github.com/Patrolavia/ggpk/generate"
 	"github.com/Patrolavia/ggpk/record"
 )
-
-func W(f *os.File, data interface{}) error {
-	return binary.Write(f, binary.LittleEndian, data)
-}
 
 func main() {
 	flag.Parse()
@@ -49,23 +45,22 @@ func main() {
 	ggg.Offsets[0] = uint64(ggg.ByteLength())
 	done(ggg.Save(dest))
 
-
-	dirs, files := compute(root, uint64(ggg.Header.Length))
+	dirs, files := generate.FromAFS(root, uint64(ggg.Header.Length))
 	_ = dirs
 	_ = files
 
 	size := ggg.Header.Length
 	for _, d := range dirs {
-		size += d.h.Length
+		size += d.Header.Length
 	}
 
 	totalDirCount := 0
-	for range dirs {
+	for _, _ = range dirs {
 		totalDirCount++
 	}
 	totalFileBytes := uint64(0)
 	for _, f := range files {
-		totalFileBytes += uint64(f.h.Length)
+		totalFileBytes += uint64(f.Header.Length)
 	}
 
 	level := 0
@@ -80,7 +75,7 @@ func main() {
 	fmt.Print("Writing directory structures ... ")
 	level = 0
 	for idx, d := range dirs {
-		d.save(dest)
+		d.Save(dest)
 		p(uint64(idx), uint64(totalDirCount))
 	}
 	done(nil)
@@ -89,8 +84,8 @@ func main() {
 	level = 0
 	cur := uint64(0)
 	for _, f := range files {
-		f.save(dest, orig)
-		cur += uint64(f.h.Length)
+		f.Save(dest, orig)
+		cur += uint64(f.Header.Length)
 		p(cur, totalFileBytes)
 	}
 	done(nil)

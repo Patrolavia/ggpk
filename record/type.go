@@ -3,7 +3,6 @@ package record
 
 import (
 	"encoding/binary"
-	"io"
 	"os"
 	"unicode/utf16"
 )
@@ -24,7 +23,7 @@ type RecordHeader struct {
 }
 
 // Header reads header from stream
-func Header(r io.Reader) (ret RecordHeader, err error) {
+func Header(r *os.File) (ret RecordHeader, err error) {
 	var l uint32
 	if err = binary.Read(r, binary.LittleEndian, &l); err != nil {
 		return
@@ -60,7 +59,7 @@ type GGGRecord struct {
 }
 
 // GGG reads GGGRecord from stream
-func GGG(r io.Reader) (ret GGGRecord, err error) {
+func GGG(r *os.File) (ret GGGRecord, err error) {
 	if ret.Header, err = Header(r); err != nil {
 		return
 	}
@@ -113,7 +112,7 @@ type DirectoryEntry struct {
 	Offset    uint64
 }
 
-func readDirectoryEntry(r io.Reader) (ret DirectoryEntry, err error) {
+func readDirectoryEntry(r *os.File) (ret DirectoryEntry, err error) {
 	err = binary.Read(r, binary.LittleEndian, &ret)
 	return
 }
@@ -135,10 +134,11 @@ type FileRecord struct {
 	NameLength uint32
 	Digest     []byte
 	Name       string // file name in utf16le, null ended
+	OrigFile   *os.File
 }
 
 // File reads FileRecord from stream
-func File(r io.Reader) (ret FileRecord, err error) {
+func File(r *os.File) (ret FileRecord, err error) {
 	var l uint32
 	if err = binary.Read(r, binary.LittleEndian, &l); err != nil {
 		return
@@ -155,7 +155,7 @@ func File(r io.Reader) (ret FileRecord, err error) {
 	}
 	utf8Name := utf16.Decode(name)
 
-	ret = FileRecord{l, d, string(utf8Name[:len(utf8Name)-1])}
+	ret = FileRecord{l, d, string(utf8Name[:len(utf8Name)-1]), r}
 	return
 }
 
@@ -184,7 +184,7 @@ type DirectoryRecord struct {
 }
 
 // Directory reads DirectoryRecord from stream
-func Directory(r io.Reader) (ret DirectoryRecord, err error) {
+func Directory(r *os.File) (ret DirectoryRecord, err error) {
 	var l uint32
 	if err = binary.Read(r, binary.LittleEndian, &l); err != nil {
 		return
@@ -266,7 +266,7 @@ func (d DirectoryRecord) ByteLength() (ret int) {
 type FreeRecord uint64
 
 // Free reads FreeRecord from stream
-func Free(r io.Reader) (ret FreeRecord, err error) {
+func Free(r *os.File) (ret FreeRecord, err error) {
 	err = binary.Read(r, binary.LittleEndian, &ret)
 	return
 }

@@ -16,6 +16,7 @@ type File struct {
 	Digest    []byte
 	Size      uint64
 	Offset    uint64
+	OrigFile  *os.File
 }
 
 // FromFileRecord creates File from ggpk record
@@ -27,6 +28,7 @@ func FromFileRecord(h record.RecordHeader, f record.FileRecord, t uint32) *File 
 		Digest:    f.Digest,
 		Size:      uint64(h.Length) - uint64(h.ByteLength()+f.ByteLength()),
 		Offset:    h.Offset + uint64(f.ByteLength()),
+		OrigFile:  f.OrigFile,
 	}
 }
 
