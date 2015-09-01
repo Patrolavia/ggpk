@@ -1,4 +1,4 @@
-// package record represents ggpk structure
+// package record represents basic ggpk records
 package record
 
 import (

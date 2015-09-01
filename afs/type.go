@@ -1,3 +1,4 @@
+// package afs is an abstract file system
 package afs
 
 import (
@@ -11,7 +12,7 @@ import (
 	"github.com/Patrolavia/ggpk/record"
 )
 
-// File represents virtual file
+// File represents a virtual file in afs
 type File struct {
 	Path      string
 	Name      string
@@ -22,7 +23,7 @@ type File struct {
 	OrigFile  *os.File
 }
 
-// FromFileRecord creates File from ggpk record
+// FromFileRecord creates File from ggpk record readed from ggpk file
 func FromFileRecord(h record.RecordHeader, f record.FileRecord, t uint32) *File {
 	return &File{
 		Path:      "",
@@ -68,12 +69,7 @@ func FromFile(f *os.File) (ret *File, err error) {
 	return
 }
 
-// Dump will dump some info for debug
-func (f *File) Dump() {
-	log.Print(f.Path)
-}
-
-// Content reads file content from ggpk file
+// Content reads file content from original file or ggpk file
 func (f *File) Content() (data []byte, err error) {
 	if _, err = f.OrigFile.Seek(int64(f.Offset), 0); err != nil {
 		return
@@ -118,17 +114,6 @@ func FromDirectoryRecord(h record.RecordHeader, d record.DirectoryRecord, t uint
 		Subfolders: make([]*Directory, 0),
 		Files:      make([]*File, 0),
 		Offset:     h.Offset,
-	}
-}
-
-// Dump will dump some info for debug
-func (d *Directory) Dump() {
-	log.Print(d.Path)
-	for _, f := range d.Files {
-		f.Dump()
-	}
-	for _, f := range d.Subfolders {
-		f.Dump()
 	}
 }
 

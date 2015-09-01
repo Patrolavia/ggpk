@@ -9,6 +9,7 @@ import (
 	"github.com/Patrolavia/ggpk/record"
 )
 
+// FromGGPK builds afs structure from ggpk file
 func FromGGPK(f *os.File) (root *Directory, err error) {
 	// test if we can seek, also ensure we are at very beginning of file
 	if _, err = f.Seek(0, 0); err != nil {

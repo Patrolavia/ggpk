@@ -29,6 +29,7 @@ func generate(root *afs.Directory, parent *record.DirectoryEntry) (dirs []GGPKDi
 	return
 }
 
+// FromAFS create series of GGPKDirectory and GGPKFile, which can be saved to file later.
 func FromAFS(root *afs.Directory, offset uint64) (dirs []GGPKDirectory, files []GGPKFile) {
 	dirs, files = generate(root, nil)
 	curOffset := uint64(dirs[0].Header.Length) + offset
