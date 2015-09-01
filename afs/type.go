@@ -1,9 +1,12 @@
 package afs
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
+	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	"github.com/Patrolavia/ggpk/record"
 )
@@ -32,6 +35,39 @@ func FromFileRecord(h record.RecordHeader, f record.FileRecord, t uint32) *File 
 	}
 }
 
+// FromFile create afs file from physic file
+func FromFile(f *os.File) (ret *File, err error) {
+	info, err := f.Stat()
+	if err != nil {
+		return
+	}
+
+	if _, err = f.Seek(0, 0); err != nil {
+		return
+	}
+
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		return
+	}
+	sum := sha256.Sum256(data)
+	digest := make([]byte, len(sum))
+	for k, v := range sum {
+		digest[k] = v
+	}
+
+	ret = &File{
+		Path:      "",
+		Name:      info.Name(),
+		Timestamp: uint32(info.ModTime().Unix()),
+		Digest:    digest,
+		Size:      uint64(info.Size()),
+		Offset:    0,
+		OrigFile:  f,
+	}
+	return
+}
+
 // Dump will dump some info for debug
 func (f *File) Dump() {
 	log.Print(f.Path)
@@ -44,7 +80,7 @@ func (f *File) Content() (data []byte, err error) {
 	}
 
 	data = make([]byte, f.Size)
-	err = binary.Read(ggpk, binary.LittleEndian, data)
+	err = binary.Read(f.OrigFile, binary.LittleEndian, data)
 	return
 }
 
@@ -57,6 +93,19 @@ type Directory struct {
 	Subfolders []*Directory
 	Files      []*File
 	Offset     uint64
+}
+
+// Root creates empty root record
+func Root() *Directory {
+	return &Directory{
+		Path:       "",
+		Name:       "",
+		Timestamp:  uint32(time.Now().Unix()),
+		Digest:     make([]byte, 0),
+		Subfolders: make([]*Directory, 0),
+		Files:      make([]*File, 0),
+		Offset:     0,
+	}
 }
 
 // FromDirectoryRecord creates Directory from ggpk record
