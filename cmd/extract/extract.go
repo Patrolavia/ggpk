@@ -11,10 +11,14 @@ import (
 	"github.com/Patrolavia/ggpk/afs"
 )
 
-var recursive bool
+var (
+	recursive bool
+	destDir   string
+)
 
 func init() {
-	flag.BoolVar(&recursive, "r", false, "Recursive extract directory, ignored if extracting file")
+	flag.BoolVar(&recursive, "r", false, "Recursive extract directory, ignored if extracting file.")
+	flag.StringVar(&destDir, "d", ".", "Extract files to directory `N`.")
 	flag.Parse()
 }
 
@@ -24,7 +28,7 @@ func main() {
 	if path == "" {
 		log.Fatalf("You have to specify path to extract.")
 	}
-	if len(path) > 1 && path[len(path)-1] == "/"[0] {
+	if path[len(path)-1] == "/"[0] {
 		path = path[:len(path)-1]
 	}
 	f, err := os.Open(fn)
@@ -33,6 +37,7 @@ func main() {
 	}
 	defer f.Close()
 
+	log.Print("Parsing ggpk file ...")
 	root, err := afs.FromGGPK(f)
 	if err != nil {
 		log.Fatalf("Parse error: %s", err)
@@ -72,13 +77,13 @@ Orz:
 }
 
 func saveFile(file *afs.File, f *os.File) {
-	fmt.Printf("Writing file %s ...", file.Path)
+	fmt.Printf("Writing file %s ... ", file.Path)
 	data, err := file.Content()
 	if err != nil {
 		log.Fatalf("While reading file %s: %s", file.Path, err)
 	}
 
-	fn := filepath.FromSlash("." + file.Path)
+	fn := filepath.FromSlash(destDir + file.Path)
 	dirname := filepath.Dir(fn)
 	if err := os.MkdirAll(dirname, os.FileMode(0777)); err != nil {
 		log.Fatalf("Cannot create directory %s: %s", dirname, err)
