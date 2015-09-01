@@ -89,7 +89,7 @@ type Directory struct {
 	Path       string
 	Name       string
 	Timestamp  uint32
-	Digest     []byte
+	digest     []byte
 	Subfolders []*Directory
 	Files      []*File
 	Offset     uint64
@@ -101,7 +101,7 @@ func Root() *Directory {
 		Path:       "",
 		Name:       "",
 		Timestamp:  uint32(time.Now().Unix()),
-		Digest:     make([]byte, 0),
+		digest:     make([]byte, 0),
 		Subfolders: make([]*Directory, 0),
 		Files:      make([]*File, 0),
 		Offset:     0,
@@ -114,7 +114,7 @@ func FromDirectoryRecord(h record.RecordHeader, d record.DirectoryRecord, t uint
 		Path:       "",
 		Name:       d.Name,
 		Timestamp:  t,
-		Digest:     d.Digest,
+		digest:     d.Digest,
 		Subfolders: make([]*Directory, 0),
 		Files:      make([]*File, 0),
 		Offset:     h.Offset,
@@ -130,6 +130,28 @@ func (d *Directory) Dump() {
 	for _, f := range d.Subfolders {
 		f.Dump()
 	}
+}
+
+// Digest compute directory content digeset
+func (d *Directory) Digest() []byte {
+	if len(d.digest) == 32 {
+		return d.digest
+	}
+
+	data := make([]byte, 0)
+	for _, f := range d.Files {
+		data = append(data, f.Digest...)
+	}
+	for _, f := range d.Subfolders {
+		data = append(data, f.Digest()...)
+	}
+	sum := sha256.Sum256(data)
+	digest := make([]byte, len(sum))
+	for k, v := range sum {
+		digest[k] = v
+	}
+	d.digest = digest
+	return digest
 }
 
 // ByName can sort files by filename

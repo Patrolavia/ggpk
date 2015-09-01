@@ -33,6 +33,7 @@ func NewGGPKFile(file *afs.File, parent *record.DirectoryEntry) (ret GGPKFile) {
 	ret.Header.Length += uint32(ret.Header.ByteLength())
 	ret.Parent = parent
 	ret.Orig = file
+	parent.Timestamp = file.Timestamp
 	return
 
 }
@@ -67,7 +68,7 @@ func NewGGPKDirectory(dir *afs.Directory, parent *record.DirectoryEntry) (ret GG
 	ret.Record = record.DirectoryRecord{
 		NameLength: uint32(len(dir.Name) + 1),
 		ChildCount: uint32(len(dir.Subfolders) + len(dir.Files)),
-		Digest:     dir.Digest,
+		Digest:     dir.Digest(),
 		Name:       dir.Name,
 		Entries:    make([]record.DirectoryEntry, len(dir.Subfolders)+len(dir.Files)),
 	}
@@ -77,6 +78,9 @@ func NewGGPKDirectory(dir *afs.Directory, parent *record.DirectoryEntry) (ret GG
 	}
 	ret.Header.Length = uint32(ret.Header.ByteLength() + ret.Record.ByteLength())
 	ret.Parent = parent
+	if parent != nil {
+		parent.Timestamp = dir.Timestamp
+	}
 
 	return
 }
