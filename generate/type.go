@@ -64,7 +64,7 @@ func (file GGPKFile) Save(f *os.File) {
 
 // Size reports file size
 func (file GGPKFile) Size() uint32 {
-	return file.Header.Length - uint32(file.Header.ByteLength() + file.Record.ByteLength())
+	return file.Header.Length - uint32(file.Header.ByteLength()+file.Record.ByteLength())
 }
 
 // GGPKDirectory is ggpk record represents an afs directory
