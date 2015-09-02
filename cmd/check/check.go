@@ -11,27 +11,35 @@ import (
 	"github.com/Patrolavia/ggpk/record"
 )
 
+func fatal(i interface{}) {
+	log.Fatal("[ERROR] ", i)
+}
+
+func fatalf(s string, args... interface{}) {
+	log.Fatalf("[ERROR] " + s, args...)
+}
+
 func main() {
 	flag.Parse()
 	fn := flag.Arg(0)
 	f, err := os.Open(fn)
 	if err != nil {
-		log.Fatalf("Cannot open ggpk file %s: %s", fn, err)
+		fatalf("Cannot open ggpk file %s: %s", fn, err)
 	}
 	defer f.Close()
 
 	rootNode, err := record.GGG(f)
 	if err != nil {
-		log.Fatalf("Cannot read ggpk signature: %s", err)
+		fatalf("Cannot read ggpk signature: %s", err)
 	}
 
 	if rootNode.Header.Tag != "GGPK" {
-		log.Fatal("This file is not ggpk file, or corrupted.")
+		fatal("This file is not ggpk file, or corrupted.")
 	}
 
 	nodes, err := rootNode.Children(f)
 	if err != nil {
-		log.Fatalf("Cannot read root node from ggpk: %s", err)
+		fatalf("Cannot read root node from ggpk: %s", err)
 	}
 
 	log.Print("Checking ...")
@@ -50,7 +58,7 @@ func doHeader(h record.RecordHeader, f *os.File, path string) (ret []byte) {
 	case "FREE":
 		fmt.Println("Skip free space.")
 	default:
-		log.Fatalf("Unknown record type %s", h.Tag)
+		fatalf("Unknown record type %s", h.Tag)
 	}
 	return ret
 }
@@ -64,7 +72,7 @@ func c(digest []byte, data []byte) {
 	for k, v := range digest {
 		if k >= len(sum) || v != sum[k] {
 			fmt.Printf("%x\n", sum)
-			os.Exit(1)
+			fatal("Checksum mismatch!")
 		}
 	}
 	fmt.Println("ok.")
@@ -73,7 +81,7 @@ func c(digest []byte, data []byte) {
 func doFile(h record.RecordHeader, f *os.File, path string) []byte {
 	r, err := record.ReadFile(f, h)
 	if err != nil {
-		log.Fatalf("Cannot read file in %s: %s", path, err)
+		fatalf("Cannot read file in %s: %s", path, err)
 	}
 
 	fn := path + r.Name
@@ -94,7 +102,7 @@ func doDir(h record.RecordHeader, f *os.File, path string) []byte {
 		if path == "" {
 			path = "ROOT"
 		}
-		log.Fatalf("Cannot read directory in %s: %s", path, err)
+		fatalf("Cannot read directory in %s: %s", path, err)
 	}
 
 	fn := path + r.Name + "/"
@@ -109,11 +117,11 @@ func doDir(h record.RecordHeader, f *os.File, path string) []byte {
 
 func doEntry(e record.DirectoryEntry, f *os.File, path string) []byte {
 	if _, err := f.Seek(int64(e.Offset), 0); err != nil {
-		log.Fatalf("Cannot seek to %d: %s", e.Offset, err)
+		fatalf("Cannot seek to %d: %s", e.Offset, err)
 	}
 	h, err := record.Header(f)
 	if err != nil {
-		log.Fatalf("Cannot read header from %d: %s", e.Offset, err)
+		fatalf("Cannot read header from %d: %s", e.Offset, err)
 	}
 	h.Offset = e.Offset + uint64(h.ByteLength())
 	return doHeader(h, f, path)
